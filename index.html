@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#07090d">
+<title>Parc Réservoirs — Raffinerie</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Réservoirs">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090d;--s1:#0e1218;--s2:#141b24;--bd:#1c2733;--bd2:#243040;
+  --txt:#dde6f0;--txt2:#6b8099;--txt3:#334455;
+  --acc:#0ea5e9;--up:#22c55e;--dn:#f43f5e;--warn:#f59e0b;--idle:#334455;
+  --reforma:#a78bfa;--naphta:#34d399;--naphtaT:#2dd4bf;
+  --essence:#fb923c;--kerosene:#60a5fa;
+  --gasoil:#94a3b8;--xylene:#f472b6;--multi:#fbbf24;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;background:var(--bg);color:var(--txt);
+  font-family:'JetBrains Mono',monospace;overflow-x:hidden}
+
+
+/* Position badges */
+.pos-badge{display:inline-block;padding:3px 8px;border-radius:5px;
+  font-size:10px;font-weight:700;letter-spacing:.5px;cursor:pointer;
+  transition:all .15s;border:1px solid transparent;user-select:none}
+.pos-RES{background:rgba(51,68,85,.25);border-color:#334455;color:#6b8099}
+.pos-LIV{background:rgba(96,165,250,.1);border-color:rgba(96,165,250,.3);color:#60a5fa}
+.pos-JET{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:#22c55e}
+.pos-VID{background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.3);color:#f43f5e}
+/* Live pulse for JET/VID */
+@keyframes live-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live-dot{display:inline-block;width:5px;height:5px;border-radius:50%;
+  margin-right:4px;animation:live-pulse 1.2s infinite}
+.pos-JET .live-dot{background:#22c55e}
+.pos-VID .live-dot{background:#f43f5e}
+.level-mm.live-anim{animation:live-pulse 1.2s infinite}
+
+/* ── HEADER ── */
+.hdr{
+  position:sticky;top:0;z-index:50;
+  background:var(--bg);border-bottom:1px solid var(--bd);
+  padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-logo{font-size:20px;line-height:1}
+.hdr-title{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:-.3px}
+.hdr-sub{font-size:9px;color:var(--txt2);letter-spacing:1px;text-transform:uppercase;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.clock-box{font-size:13px;font-weight:600;color:var(--acc);
+  background:var(--s1);border:1px solid var(--bd);border-radius:7px;padding:5px 10px;letter-spacing:1px}
+.next-box{font-size:10px;color:var(--txt2);
+  background:var(--s1);border:1px solid var(--bd);border-radius:7px;padding:5px 10px;
+  white-space:nowrap}
+.next-box.urgent{color:var(--warn);border-color:rgba(245,158,11,.3)}
+
+/* ── DENSITY ROW ── */
+.dens-strip{
+  display:flex;gap:0;overflow-x:auto;
+  border-bottom:1px solid var(--bd);
+  background:var(--s1);
+  scrollbar-width:none;
+}
+.dens-strip::-webkit-scrollbar{display:none}
+.dens-cell{
+  flex-shrink:0;padding:8px 12px;
+  border-right:1px solid var(--bd);
+  min-width:100px;
+}
+.dens-label{font-size:8px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.dens-input-wrap{display:flex;align-items:center;gap:3px}
+.dens-input{background:transparent;border:none;outline:none;width:68px;
+  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--txt);
+  padding:0}
+.dens-unit{font-size:9px;color:var(--txt2)}
+.dens-updated{font-size:8px;color:var(--txt3);margin-top:2px}
+
+/* ── MAIN TABLE ── */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{
+  position:sticky;top:52px;z-index:10;
+  background:var(--s2);border-bottom:2px solid var(--bd2);
+  padding:8px 10px;text-align:left;
+  font-size:8px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);
+  white-space:nowrap;
+}
+thead th:first-child{min-width:80px}
+tbody tr{border-bottom:1px solid var(--bd);transition:background .12s;cursor:pointer}
+tbody tr:hover{background:var(--s1)}
+tbody tr.in-mouvement{background:rgba(14,165,233,.04)}
+tbody tr.in-mouvement:hover{background:rgba(14,165,233,.08)}
+td{padding:9px 10px;vertical-align:middle;white-space:nowrap}
+
+/* Bac ID col */
+.td-id{display:flex;align-items:center;gap:7px}
+.prod-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.bac-name{font-weight:700;font-size:12px;color:var(--txt)}
+.bac-prod{font-size:9px;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px}
+.roof-tag{font-size:8px;color:var(--txt3)}
+
+/* Level col */
+.td-level{text-align:right}
+.level-mm{font-size:16px;font-weight:700;color:var(--txt);line-height:1}
+.level-mm.empty{color:var(--txt3)}
+.level-pct{font-size:9px;color:var(--txt2);margin-top:1px}
+.level-bar{width:52px;height:4px;background:var(--bd2);border-radius:999px;margin-top:4px;overflow:hidden;margin-left:auto}
+.level-fill{height:100%;border-radius:999px;transition:width .4s}
+
+/* Delta col */
+.td-delta{text-align:right}
+.delta-val{font-size:12px;font-weight:600}
+.delta-val.up{color:var(--up)}.delta-val.dn{color:var(--dn)}.delta-val.neu{color:var(--txt3)}
+
+/* Vol / Mass col */
+.td-vol{text-align:right}
+.vol-obs{font-size:11px;color:var(--txt)}
+.vol-cor{font-size:10px;color:var(--acc)}
+.mass-val{font-size:10px;color:var(--txt2)}
+
+/* Temp col */
+.td-temp{text-align:right}
+.temp-val{font-size:13px;font-weight:600;color:var(--warn)}
+
+/* Flow col */
+.td-flow{text-align:right}
+.flow-badge{display:inline-flex;align-items:center;gap:4px;
+  padding:3px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid}
+.flow-badge.fill{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.2);color:var(--up)}
+.flow-badge.drain{background:rgba(244,63,94,.08);border-color:rgba(244,63,94,.2);color:var(--dn)}
+.flow-badge.both{background:rgba(14,165,233,.08);border-color:rgba(14,165,233,.2);color:var(--acc)}
+.flow-badge.idle{background:transparent;border-color:var(--bd);color:var(--txt3)}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(7,9,13,.88);backdrop-filter:blur(6px);
+  align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--s1);border:1px solid var(--bd2);
+  border-radius:18px 18px 0 0;width:100%;max-width:500px;
+  padding:20px 18px 36px;
+  max-height:90vh;overflow-y:auto;
+}
+.modal-drag{width:36px;height:4px;background:var(--bd2);border-radius:999px;
+  margin:0 auto 16px}
+.modal-title{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;
+  margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.modal-subtitle{font-size:10px;color:var(--txt2);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:18px}
+
+/* form rows */
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.frow.full{grid-template-columns:1fr}
+.frow.three{grid-template-columns:1fr 1fr 1fr}
+.flabel{font-size:9px;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.flabel span{color:var(--acc);margin-left:3px}
+.finput{
+  width:100%;background:var(--bg);border:1px solid var(--bd2);border-radius:9px;
+  padding:11px 12px;color:var(--txt);font-family:'JetBrains Mono',monospace;
+  font-size:17px;font-weight:700;outline:none;transition:border-color .2s;
+  text-align:center;
+}
+.finput:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(14,165,233,.12)}
+.finput.sm{font-size:14px;padding:9px 10px}
+.ub{background:var(--s2);border:1px solid var(--bd);border-radius:9px;
+  padding:11px 10px;font-size:11px;color:var(--txt2);
+  display:flex;align-items:center;white-space:nowrap}
+.field-row{display:flex;gap:6px}
+
+/* Direction toggle */
+.dir-toggle{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+.dir-btn{padding:10px;border-radius:9px;border:2px solid var(--bd);
+  background:var(--bg);color:var(--txt2);
+  font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px;
+  cursor:pointer;transition:all .15s;text-align:center}
+.dir-btn.fill.on{border-color:var(--up);background:rgba(34,197,94,.08);color:var(--up)}
+.dir-btn.drain.on{border-color:var(--dn);background:rgba(244,63,94,.08);color:var(--dn)}
+
+/* Flow section */
+.flow-section{background:var(--bg);border:1px solid var(--bd);border-radius:10px;
+  padding:12px;margin-bottom:12px}
+.flow-section-title{font-size:9px;color:var(--txt2);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.flow-toggle{font-size:9px;color:var(--acc);cursor:pointer;padding:2px 6px;
+  border:1px solid rgba(14,165,233,.3);border-radius:4px}
+
+/* Multi product */
+.multi-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.multi-btn{padding:5px 10px;border-radius:6px;border:1px solid var(--bd);
+  background:var(--bg);color:var(--txt2);font-family:'JetBrains Mono',monospace;
+  font-size:10px;cursor:pointer;transition:all .15s}
+
+/* Save button */
+.btn-save{width:100%;padding:14px;border-radius:11px;border:none;
+  background:linear-gradient(135deg,var(--acc),#0284c7);color:#fff;
+  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
+  cursor:pointer;box-shadow:0 4px 20px rgba(14,165,233,.25);
+  transition:all .15s;margin-top:4px}
+.btn-save:active{transform:scale(.97)}
+
+/* Alert */
+.toast{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  z-index:300;padding:10px 18px;border-radius:10px;font-size:11px;
+  font-family:'JetBrains Mono',monospace;white-space:nowrap;
+  box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.ok{background:#14532d;border:1px solid var(--up);color:#86efac}
+.toast.warn{background:#451a03;border:1px solid var(--warn);color:#fde68a}
+.toast.show{display:block;animation:fadeup .3s ease}
+@keyframes fadeup{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translateX(-50%)}}
+
+/* CTL info */
+.ctl-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.ctl-pill{padding:4px 9px;border-radius:5px;font-size:10px;
+  background:var(--s2);border:1px solid var(--bd);color:var(--txt2)}
+.ctl-pill b{color:var(--acc)}
+
+/* Log mini */
+.mini-log{margin-top:14px;border-top:1px solid var(--bd);padding-top:12px}
+.mini-log-title{font-size:9px;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.mini-log-row{display:grid;grid-template-columns:48px 1fr 52px 44px 60px;gap:4px;
+  padding:6px 2px;border-bottom:1px solid var(--bd);font-size:10px;align-items:center}
+.mini-log-row:last-child{border-bottom:none}
+.log-t{color:var(--txt3);font-size:9px}
+.log-h{font-weight:700;color:var(--txt)}
+.log-up{color:var(--up)}.log-dn{color:var(--dn)}.log-neu{color:var(--txt3)}
+
+/* Cfg section */
+.cfg-section{margin-top:14px;border-top:1px solid var(--bd);padding-top:12px}
+.cfg-toggle-btn{font-size:9px;color:var(--txt2);text-transform:uppercase;
+  letter-spacing:1px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:0}
+.cfg-body{display:none;margin-top:10px}
+.cfg-body.open{display:block}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-logo">🛢</div>
+    <div>
+      <div class="hdr-title">Parc Réservoirs</div>
+      <div class="hdr-sub">Raffinerie</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="clock-box" id="clockBox">--:--</div>
+    <div class="next-box" id="nextBox">—</div>
+  </div>
+</div>
+
+<!-- DENSITÉS (scroll horizontal) -->
+<div class="dens-strip" id="densStrip"></div>
+
+<!-- TABLE -->
+<div class="tbl-wrap">
+<table id="mainTable">
+  <thead>
+    <tr>
+      <th>Bac</th>
+      <th>Position</th>
+      <th style="text-align:right">Niveau</th>
+      <th style="text-align:right">Δ mm</th>
+      <th style="text-align:right">Vol. m³</th>
+      <th style="text-align:right">Temp</th>
+      <th style="text-align:right">Débit</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg" onclick="bgClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-drag"></div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// PRODUCTS
+// ═══════════════════════════════════════
+const PRODS = {
+  reforma: {n:'Reforma',     c:'#a78bfa', g:'II',  d:0.740},
+  naphta:  {n:'Naphta brut', c:'#34d399', g:'I',   d:0.720},
+  naphtaT: {n:'Naphta tr.',  c:'#2dd4bf', g:'I',   d:0.715},
+  essence: {n:'Essence',     c:'#fb923c', g:'II',  d:0.745},
+  kerosene:{n:'Kérosène',    c:'#60a5fa', g:'III', d:0.800},
+  gasoil:  {n:'Gasoil',      c:'#94a3b8', g:'III', d:0.835},
+  xylene:  {n:'Xylène',      c:'#f472b6', g:'II',  d:0.860},
+  multi:   {n:'Multi',       c:'#fbbf24', g:'II',  d:0.740},
+};
+
+// ASTM D1250 CTL
+function CTL(pk, t, d15){
+  const g = PRODS[pk]?.g||'II';
+  const K = g==='I'?613.97226 : g==='III'?186.96880 : 346.42310;
+  const a = (K/(d15*d15))*1e-6, dt=t-15;
+  return Math.exp(-a*dt*(1+0.8*a*dt));
+}
+
+// ═══════════════════════════════════════
+// BACS CONFIG (diameter + height = once)
+// ═══════════════════════════════════════
+const BACS = [
+  {id:'RS903',pk:'reforma', roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS904',pk:'xylene',  roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS905',pk:'multi',   roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false,
+    mpList:['reforma','naphta','kerosene'], mp:'reforma'},
+  {id:'RS906',pk:'naphta',  roof:'F', d:0,h:0, double:true,flowIn:0,flowOut:0, pos:'RES', active:false},
+  {id:'RS907',pk:'naphtaT', roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS908',pk:'reforma', roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS909',pk:'essence', roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS910',pk:'essence', roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS911',pk:'reforma', roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS912',pk:'reforma', roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS913',pk:'kerosene',roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS914',pk:'kerosene',roof:'F', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS915',pk:'gasoil',  roof:'X', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS916',pk:'gasoil',  roof:'X', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+  {id:'RS917',pk:'gasoil',  roof:'X', d:0,h:0, flowRateH:0,dir:'fill', pos:'RES', active:false},
+];
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const ST = {
+  dens: {},          // pk -> density at 15°C
+  bacs: {},          // id -> {snaps:[], hmm, temp}
+  lastTs: null,
+  total: 0,
+};
+BACS.forEach(b=>{
+  ST.bacs[b.id]={snaps:[],hmm:null,temp:null};
+  const pk = b.pk==='multi'?'reforma':b.pk;
+  if(!ST.dens[pk]) ST.dens[pk]=PRODS[pk]?.d||0.750;
+});
+Object.keys(PRODS).forEach(pk=>{ if(!ST.dens[pk]) ST.dens[pk]=PRODS[pk].d; });
+
+const area  = b => {const r=(b.d||0)/2; return r>0?Math.PI*r*r:0;};
+const capMm = b => (b.h||0)*1000;
+const vol   = (b,h) => {const A=area(b); return A>0?A*(h/1000):0;};
+
+// ═══════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════
+function tick(){
+  const now=new Date();
+  document.getElementById('clockBox').textContent =
+    now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(ST.lastTs){
+    const next=new Date(ST.lastTs+4*3600000), diff=next-now;
+    const nb=document.getElementById('nextBox');
+    if(diff>0){
+      const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+      nb.textContent=`J: ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      nb.className='next-box'+(h===0&&m<15?' urgent':'');
+    } else {
+      document.getElementById('nextBox').textContent='⚠ RELEVÉ DÛ';
+      document.getElementById('nextBox').className='next-box urgent';
+    }
+  } else {
+    document.getElementById('nextBox').textContent='Pas de relevé';
+  }
+}
+setInterval(tick,1000); tick();
+
+// ═══════════════════════════════════════
+// DENSITY STRIP
+// ═══════════════════════════════════════
+const UPRODS=['reforma','naphta','naphtaT','essence','kerosene','gasoil','xylene'];
+function renderDens(){
+  document.getElementById('densStrip').innerHTML = UPRODS.map(pk=>{
+    const p=PRODS[pk], d=ST.dens[pk]||p.d;
+    return `<div class="dens-cell">
+      <div class="dens-label" style="color:${p.c}">${p.n}</div>
+      <div class="dens-input-wrap">
+        <input class="dens-input" type="number" step="0.001" min="0.5" max="1.2"
+          value="${d}" inputmode="decimal"
+          onchange="ST.dens['${pk}']=parseFloat(this.value)||${p.d};renderTable()"
+          style="color:${p.c}">
+        <span class="dens-unit">kg/L</span>
+      </div>
+      <div class="dens-updated" id="dens_upd_${pk}">—</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════
+function renderTable(){
+  const tbody=document.getElementById('tableBody');
+  tbody.innerHTML = BACS.map(b=>{
+    const s=ST.bacs[b.id];
+    const pk = b.pk==='multi'?(b.mp||'reforma'):b.pk;
+    const p  = PRODS[pk]||PRODS.reforma;
+    const d  = ST.dens[pk]||p.d;
+    const hmm = s.hmm, temp=s.temp;
+    const cap = capMm(b);
+    const pct = (hmm!==null&&cap>0)?Math.min(100,(hmm/cap)*100):null;
+    const V   = (hmm!==null&&b.d>0)?vol(b,hmm):null;
+    const ctl = (temp!==null&&V!==null)?CTL(pk,temp,d):null;
+    const Vc  = (V!==null&&ctl!==null)?V*ctl:null;
+    const M   = (Vc!==null)?Vc*d:null;
+
+    // delta
+    const snaps=s.snaps;
+    let dH=null;
+    if(snaps.length>=2) dH=snaps[snaps.length-1].hmm-snaps[snaps.length-2].hmm;
+
+    const fc = pct!==null?(pct>90?'#f43f5e':pct<10?'#f59e0b':p.c):'#334455';
+
+    // flow badge
+    let flowHtml='<span class="flow-badge idle">—</span>';
+    if(b.active){
+      if(b.double){
+        const bi=b.flowIn||0, bo=b.flowOut||0;
+        if(bi>0&&bo>0) flowHtml=`<span class="flow-badge both">⇅ ${bi}/${bo}</span>`;
+        else if(bi>0)  flowHtml=`<span class="flow-badge fill">▲ ${bi}</span>`;
+        else if(bo>0)  flowHtml=`<span class="flow-badge drain">▼ ${bo}</span>`;
+      } else {
+        const q=b.flowRateH||0;
+        if(q>0) flowHtml=`<span class="flow-badge ${b.dir}">${b.dir==='fill'?'▲':'▼'} ${q}</span>`;
+      }
+    }
+
+    const dHtml = dH!==null
+      ?`<span class="delta-val ${dH>0.5?'up':dH<-0.5?'dn':'neu'}">${dH>0?'+':''}${Math.round(dH)}</span>`
+      :'<span class="delta-val neu">—</span>';
+
+    const mouvCls = b.active?' in-mouvement':'';
+
+    return `<tr class="${mouvCls}" onclick="openModal('${b.id}')">
+      <td>
+        <div class="td-id">
+          <div class="prod-dot" style="background:${p.c}"></div>
+          <div>
+            <div class="bac-name">${b.id}</div>
+            <div class="bac-prod">${p.n}</div>
+            <div class="roof-tag">${b.roof==='F'?'Flottant':'Fixe'}</div>
+          </div>
+        </div>
+      </td>
+      <td onclick="cyclePos('${b.id}',event)">
+        <span class="pos-badge pos-${b.pos}" id="posBadge_${b.id}">
+          <span class="live-dot" style="display:${['JET','VID'].includes(b.pos)?'inline-block':'none'}"></span>${b.pos}
+        </span>
+      </td>
+      <td class="td-level">
+        <div class="level-mm ${hmm===null?'empty':hmm!==null&&['JET','VID'].includes(b.pos)?'live-anim':''}">${hmm!==null?Math.round(hmm).toLocaleString('fr-FR'):'—'}</div>
+        <div class="level-pct">${pct!==null?pct.toFixed(1)+'%':'—'}</div>
+        <div class="level-bar"><div class="level-fill" style="width:${pct||0}%;background:${fc}"></div></div>
+      </td>
+      <td class="td-delta">${dHtml}</td>
+      <td class="td-vol">
+        <div class="vol-obs">${V!==null?V.toFixed(1):'—'}</div>
+        <div class="vol-cor">${Vc!==null?Vc.toFixed(1)+'✓':'—'}</div>
+        <div class="mass-val">${M!==null?M.toFixed(1)+' t':'—'}</div>
+      </td>
+      <td class="td-temp">
+        <span class="temp-val">${temp!==null?temp+'°':'—'}</span>
+      </td>
+      <td class="td-flow">${flowHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════
+let activeBacId=null;
+function openModal(id){
+  activeBacId=id;
+  document.getElementById('modalBg').classList.add('open');
+  buildModal(id);
+}
+function closeModal(){
+  document.getElementById('modalBg').classList.remove('open');
+  activeBacId=null;
+}
+function bgClick(e){if(e.target===document.getElementById('modalBg'))closeModal();}
+
+function buildModal(id){
+  const b=BACS.find(x=>x.id===id);
+  const s=ST.bacs[id];
+  const pk=b.pk==='multi'?(b.mp||'reforma'):b.pk;
+  const p=PRODS[pk]||PRODS.reforma;
+  const d=ST.dens[pk]||p.d;
+  const hmm=s.hmm,temp=s.temp!==null?s.temp:'';
+  const cap=capMm(b);
+  const V=(hmm!==null&&b.d>0)?vol(b,hmm):null;
+  const ctl=(temp!==''&&V!==null)?CTL(pk,parseFloat(temp),d):null;
+  const Vc=(V!==null&&ctl!==null)?V*ctl:null;
+  const M=(Vc!==null)?Vc*d:null;
+  const snaps=s.snaps;
+  let dH=null;
+  if(snaps.length>=2) dH=snaps[snaps.length-1].hmm-snaps[snaps.length-2].hmm;
+
+  // Multi product buttons
+  const multiHtml = b.mpList?`
+    <div style="margin-bottom:12px">
+      <div class="flabel">Produit actif</div>
+      <div class="multi-btns" id="multiBtns">
+        ${b.mpList.map(mp=>`<button class="multi-btn ${mp===(b.mp||'reforma')?'active':''}"
+          style="${mp===(b.mp||'reforma')?'border-color:'+PRODS[mp].c+';color:'+PRODS[mp].c+';background:'+PRODS[mp].c+'11':''}"
+          onclick="setMP('${id}','${mp}',this)">${PRODS[mp].n}</button>`).join('')}
+      </div>
+    </div>`:'';
+
+  // Flow section
+  const flowHtml = b.double?`
+    <div class="flow-section">
+      <div class="flow-section-title">
+        <span>Débits simultanés</span>
+        <span class="flow-toggle" onclick="toggleActive('${id}')">${b.active?'■ Arrêter':'▶ En mouvement'}</span>
+      </div>
+      <div class="frow">
+        <div><div class="flabel">▲ Entrée <span>m³/h</span></div>
+          <input class="finput" id="fIn_${id}" type="number" value="${b.flowIn||0}" min="0" step="0.5" inputmode="decimal"></div>
+        <div><div class="flabel">▼ Sortie <span>m³/h</span></div>
+          <input class="finput" id="fOut_${id}" type="number" value="${b.flowOut||0}" min="0" step="0.5" inputmode="decimal"></div>
+      </div>
+    </div>`:`
+    <div class="flow-section">
+      <div class="flow-section-title">
+        <span>Débit</span>
+        <span class="flow-toggle" onclick="toggleActive('${id}')">${b.active?'■ Arrêter':'▶ En mouvement'}</span>
+      </div>
+      <div class="dir-toggle">
+        <div class="dir-btn fill ${b.dir==='fill'?'on':''}" onclick="setDir('${id}','fill',this)">▲ Remplissage</div>
+        <div class="dir-btn drain ${b.dir==='drain'?'on':''}" onclick="setDir('${id}','drain',this)">▼ Vidange</div>
+      </div>
+      <div class="frow full">
+        <div>
+          <div class="flabel">Débit (Q) <span>m³/h</span></div>
+          <div class="field-row">
+            <input class="finput" id="fQ_${id}" type="number" value="${b.flowRateH||0}" min="0" step="0.5" inputmode="decimal">
+            <div class="ub">m³/h</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  // CTL pills
+  const ctlHtml = ctl!==null?`
+    <div class="ctl-row">
+      <div class="ctl-pill">CTL <b>${ctl.toFixed(5)}</b></div>
+      <div class="ctl-pill">Vol.obs <b>${V!==null?V.toFixed(3):'-'} m³</b></div>
+      <div class="ctl-pill">Vol.15°C <b>${Vc!==null?Vc.toFixed(3):'-'} m³</b></div>
+      <div class="ctl-pill">Masse <b>${M!==null?M.toFixed(2)+' t':'-'}</b></div>
+    </div>`:'';
+
+  // Mini log
+  const logHtml = snaps.length?`
+    <div class="mini-log">
+      <div class="mini-log-title">Historique</div>
+      ${[...snaps].reverse().slice(0,8).map((sn,ri)=>{
+        const idx=snaps.length-1-ri, prev=idx>0?snaps[idx-1]:null;
+        const dh=prev?sn.hmm-prev.hmm:null;
+        const cls=dh===null?'log-neu':dh>0.5?'log-up':dh<-0.5?'log-dn':'log-neu';
+        const t=new Date(sn.ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+        return `<div class="mini-log-row">
+          <span class="log-t">${t}</span>
+          <span class="log-h">${Math.round(sn.hmm).toLocaleString('fr-FR')} mm</span>
+          <span class="${cls}">${dh!==null?(dh>=0?'+':'')+Math.round(dh)+' mm':'—'}</span>
+          <span class="log-neu">${sn.temp}°C</span>
+          <span class="log-neu">${sn.volC.toFixed(1)} m³</span>
+        </div>`;
+      }).join('')}
+    </div>`:'';
+
+  document.getElementById('modalContent').innerHTML=`
+    <div class="modal-title">
+      <span style="width:10px;height:10px;border-radius:50%;background:${p.c};display:inline-block;flex-shrink:0"></span>
+      ${id}
+    </div>
+    <div class="modal-subtitle">${p.n} · Toit ${b.roof==='F'?'flottant':'fixe'} · ρ=${d} kg/L (15°C)</div>
+
+    ${ctlHtml}
+    ${multiHtml}
+
+    <!-- RELEVÉ -->
+    <div class="frow">
+      <div>
+        <div class="flabel">Hauteur <span>mm</span></div>
+        <input class="finput" id="inH_${id}" type="number" placeholder="ex: 5230" inputmode="numeric"
+          value="${hmm!==null?Math.round(hmm):''}">
+      </div>
+      <div>
+        <div class="flabel">Température <span>°C</span></div>
+        <input class="finput" id="inT_${id}" type="number" placeholder="ex: 24.5"
+          inputmode="decimal" step="0.1" value="${s.temp!==null?s.temp:''}">
+      </div>
+    </div>
+
+    ${flowHtml}
+
+    <button class="btn-save" onclick="save('${id}')">✓ Enregistrer</button>
+
+    <!-- CONFIG (once) -->
+    <div class="cfg-section">
+      <div class="cfg-toggle-btn" onclick="toggleCfg('${id}')">
+        <span>⚙ Dimensions du bac</span><span id="cfgArr_${id}">▼</span>
+      </div>
+      <div class="cfg-body" id="cfgBody_${id}">
+        <div class="frow" style="margin-top:10px">
+          <div>
+            <div class="flabel">Diamètre <span>m</span></div>
+            <div class="field-row">
+              <input class="finput sm" id="cfgD_${id}" type="number" value="${b.d}" step="0.01" min="0" inputmode="decimal" oninput="updCfg('${id}')">
+              <div class="ub">m</div>
+            </div>
+          </div>
+          <div>
+            <div class="flabel">Hauteur totale <span>m</span></div>
+            <div class="field-row">
+              <input class="finput sm" id="cfgH_${id}" type="number" value="${b.h}" step="0.1" min="0" inputmode="decimal" oninput="updCfg('${id}')">
+              <div class="ub">m</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--acc);
+          background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px" id="cfgCap_${id}">
+          ${b.d>0&&b.h>0?(area(b)*b.h).toFixed(2)+' m³ · '+capMm(b)+' mm':'Entrez diamètre et hauteur'}
+        </div>
+      </div>
+    </div>
+
+    ${logHtml}
+  `;
+}
+
+// ═══════════════════════════════════════
+// SAVE RELEVÉ
+// ═══════════════════════════════════════
+function save(id){
+  const b=BACS.find(x=>x.id===id), s=ST.bacs[id];
+  const hmm=parseFloat(document.getElementById('inH_'+id)?.value);
+  const tmp=parseFloat(document.getElementById('inT_'+id)?.value);
+  if(isNaN(hmm)||hmm<0){toast('⚠ Hauteur invalide','warn');return;}
+  if(isNaN(tmp)){toast('⚠ Température invalide','warn');return;}
+  const cap=capMm(b);
+  if(cap>0&&hmm>cap){toast('⚠ Hauteur > hauteur bac ('+cap+' mm)','warn');return;}
+
+  // update flow
+  if(b.double){
+    b.flowIn =parseFloat(document.getElementById('fIn_'+id)?.value)||0;
+    b.flowOut=parseFloat(document.getElementById('fOut_'+id)?.value)||0;
+    if(b.flowIn>0||b.flowOut>0) b.active=true;
+  } else {
+    b.flowRateH=parseFloat(document.getElementById('fQ_'+id)?.value)||0;
+    if(b.flowRateH>0) b.active=true;
+  }
+
+  const pk=b.pk==='multi'?(b.mp||'reforma'):b.pk;
+  const d=ST.dens[pk]||PRODS[pk]?.d||0.75;
+  const ctl=CTL(pk,tmp,d);
+  const V=vol(b,hmm), Vc=V*ctl, M=Vc*d;
+
+  s.snaps.push({ts:Date.now(),hmm,temp:tmp,vol:V,volC:Vc,mass:M,ctl});
+  s.hmm=hmm; s.temp=tmp;
+  ST.total++; ST.lastTs=Date.now();
+
+  toast(`✓ ${id} — ${Math.round(hmm).toLocaleString('fr-FR')} mm · ${tmp}°C · CTL=${ctl.toFixed(4)} · ${Vc.toFixed(2)} m³ · ${M.toFixed(2)} t`,'ok');
+  renderTable();
+  buildModal(id);
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function toggleActive(id){
+  const b=BACS.find(x=>x.id===id);
+  b.active=!b.active;
+  buildModal(id); renderTable();
+}
+function setDir(id,dir,btn){
+  const b=BACS.find(x=>x.id===id); b.dir=dir;
+  btn.closest('.dir-toggle').querySelectorAll('.dir-btn').forEach(el=>{
+    el.classList.remove('on');
+  });
+  btn.classList.add('on');
+}
+function setMP(id,mp,btn){
+  const b=BACS.find(x=>x.id===id); b.mp=mp;
+  btn.closest('.multi-btns').querySelectorAll('.multi-btn').forEach(el=>{
+    el.classList.remove('active');el.style.borderColor='';el.style.color='';el.style.background='';
+  });
+  btn.classList.add('active');
+  btn.style.borderColor=PRODS[mp].c;
+  btn.style.color=PRODS[mp].c;
+  btn.style.background=PRODS[mp].c+'11';
+}
+function updCfg(id){
+  const b=BACS.find(x=>x.id===id);
+  b.d=parseFloat(document.getElementById('cfgD_'+id)?.value)||0;
+  b.h=parseFloat(document.getElementById('cfgH_'+id)?.value)||0;
+  const el=document.getElementById('cfgCap_'+id);
+  if(el) el.textContent=b.d>0&&b.h>0
+    ?(area(b)*b.h).toFixed(2)+' m³ · '+capMm(b)+' mm'
+    :'Entrez diamètre et hauteur';
+  renderTable();
+}
+function toggleCfg(id){
+  document.getElementById('cfgBody_'+id)?.classList.toggle('open');
+  const a=document.getElementById('cfgArr_'+id);
+  if(a) a.textContent=a.textContent==='▼'?'▲':'▼';
+}
+function toast(msg,type){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast ${type} show`;
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>el.className='toast',5000);
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+
+// Position cycle: RES → LIV → JET → VID → RES
+const POS_ORDER = ['RES','LIV','JET','VID'];
+const POS_LIVE  = ['JET','VID']; // positions that tick every minute
+
+function cyclePos(id, e){
+  e.stopPropagation();
+  const b = BACS.find(x=>x.id===id);
+  const idx = POS_ORDER.indexOf(b.pos);
+  b.pos = POS_ORDER[(idx+1)%POS_ORDER.length];
+  // sync active state: JET/VID = in movement
+  b.active = POS_LIVE.includes(b.pos);
+  renderTable();
+}
+
+// Live ticker: for JET/VID bacs, re-render level column every 60s
+setInterval(()=>{
+  BACS.forEach(b=>{
+    if(!POS_LIVE.includes(b.pos)) return;
+    const s=ST.bacs[b.id];
+    if(s.hmm===null||b.flowRateH===0&&!(b.double)) return;
+    // Compute new estimated level based on flow rate
+    if(b.double){
+      const net = (b.flowIn||0)-(b.flowOut||0); // m³/h net
+      const A = area(b);
+      if(A===0) return;
+      const dhMm = (net/A)*1000*(1/60); // mm per minute
+      s.hmm = Math.max(0, Math.min(capMm(b)||999999, s.hmm+dhMm));
+    } else if(b.flowRateH>0){
+      const A=area(b); if(A===0) return;
+      const dhMm=(b.flowRateH/A)*1000*(1/60)*(b.dir==='fill'?1:-1);
+      s.hmm=Math.max(0,Math.min(capMm(b)||999999,s.hmm+dhMm));
+    }
+  });
+  renderTable();
+},60000);
+
+window.addEventListener('load',()=>{ renderDens(); renderTable(); });
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(r => console.log('SW ok', r.scope))
+      .catch(e => console.warn('SW fail', e));
+  });
+}
+</script>
+
+<!-- PWA Install Banner -->
+<div id="installBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:400;
+  background:#0e1218;border-top:1px solid #1c2733;padding:14px 16px;
+  display:none;align-items:center;justify-content:space-between;gap:12px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:#dde6f0">
+  <div>
+    <div style="font-weight:700;margin-bottom:2px">📲 Installer l'application</div>
+    <div style="color:#6b8099;font-size:10px">Ajouter à l'écran d'accueil pour utiliser hors ligne</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0">
+    <button onclick="document.getElementById('installBanner').style.display='none'"
+      style="padding:7px 12px;border-radius:7px;border:1px solid #1c2733;background:transparent;
+      color:#6b8099;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer">Plus tard</button>
+    <button id="installBtn"
+      style="padding:7px 14px;border-radius:7px;border:none;
+      background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;
+      font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;cursor:pointer">Installer</button>
+  </div>
+</div>
+
+<script>
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const banner = document.getElementById('installBanner');
+  banner.style.display = 'flex';
+});
+document.getElementById('installBtn')?.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').style.display = 'none';
+  if (outcome === 'accepted') toast('✓ Application installée !', 'ok');
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').style.display = 'none';
+  deferredPrompt = null;
+});
+</script>
+
+</body>
+</html>
